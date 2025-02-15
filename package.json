@@ -8,7 +8,9 @@
 	"dependencies": {
 		"browser-sync": "^3.0.2",
 		"bun": "^1.1.17",
+		"bun-bundler": "^0.1.29",
 		"cross-env": "^7.0.3",
+		"ismobilejs": "^1.1.1",
 		"jsdom": "^24.1.0",
 		"pug": "^3.0.3",
 		"sass": "^1.77.6",

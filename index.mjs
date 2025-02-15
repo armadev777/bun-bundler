@@ -113,39 +113,42 @@ export class Bundler extends Reporter {
 		});
 	}
 
-	processHTMLTemplate(filePath, visitedFiles = new Set()) {
-		if (visitedFiles.has(filePath)) {
-			throw new Error(`Dependency cycle detected in file ${filePath}`);
-		}
+	// processHTMLTemplate(filePath, visitedFiles = new Set()) {
+	// 	if (visitedFiles.has(filePath)) {
+	// 		throw new Error(`Dependency cycle detected in file ${filePath}`);
+	// 	}
 
-		visitedFiles.add(filePath);
+	// 	visitedFiles.add(filePath);
 
-		let content = fs.readFileSync(filePath, 'utf-8');
-		const includeRegex = /<!--\s*@include\s+['"](.+?)['"]\s*-->/g;
+	// 	let content = fs.readFileSync(filePath, 'utf-8');
+	// 	const includeRegex = /<!--\s*@include\s+['"](.+?)['"]\s*-->/g;
 
-		let match;
-		while ((match = includeRegex.exec(content)) !== null) {
-			const includeFile = match[1];
-			const includePath = path.resolve(path.dirname(filePath), includeFile);
-			if (!existsSync(includePath)) {
-				this.errThrow(`File ${includeFile} not found`);
-				return;
-			}
-			const includeContent = this.processHTMLTemplate(includePath, visitedFiles);
-			content = content.replace(match[0], includeContent);
-		}
+	// 	let match;
+	// 	while ((match = includeRegex.exec(content)) !== null) {
+	// 		const includeFile = match[1];
+	// 		const includePath = path.resolve(path.dirname(filePath), includeFile);
+	// 		if (!existsSync(includePath)) {
+	// 			this.errThrow(`File ${includeFile} not found`);
+	// 			return;
+	// 		}
+	// 		const includeContent = this.processHTMLTemplate(includePath, visitedFiles);
+	// 		content = content.replace(match[0], includeContent);
+	// 	}
 
-		visitedFiles.delete(filePath);
-		return content;
-	}
+	// 	visitedFiles.delete(filePath);
+	// 	return content;
+	// }
 
 	async compileStyles() {
 		this.stylesToAssemble = [];
 		this.debugLog('Styles compilation');
 		createDir(this.config.cssDist);
+
 		try {
+			// Компиляция основных стилей (без critical.scss)
+			// const filesToCompile = this.config.sassFiles.filter((file) => !file.includes('critical.scss'));
 			await this.compile({
-				filePaths: this.config.sassFiles,
+				filePaths: filesToCompile,
 				type: constants.compilationTypes.css,
 				newFileExt: constants.extDist.css,
 				dist: this.config.cssDist,
@@ -155,63 +158,74 @@ export class Bundler extends Reporter {
 						...this.config.sassConfigOverrides,
 					})?.css,
 			});
+
+			// Компиляция критичного стиля отдельно
+			// const criticalCssFile = this.config.sassFiles.find((file) => file.includes('critical.scss'));
+
+			// if (criticalCssFile) {
+			// 	const criticalCssContent = sass.compile(criticalCssFile, {
+			// 		style: 'compressed',
+			// 		...this.config.sassConfigOverrides,
+			// 	})?.css;
+			// 	createFile({ url: path.join(this.config.cssDist, 'critical.css'), content: criticalCssContent });
+			// }
 		} catch (error) {
 			this.errLog('Error while compiling css/scss files');
 			this.errThrow(error);
 		}
 	}
 
-	async compilePug() {
-		this.debugLog('Pug/html compilation');
+	// async compilePug() {
+	// 	this.debugLog('Pug/html compilation');
 
-		const htmlFilesIsArray = Array.isArray(this.config.htmlFiles);
+	// 	const htmlFilesIsArray = Array.isArray(this.config.htmlFiles);
 
-		if (!htmlFilesIsArray || !this.config.htmlFiles.length) {
-			this.debugLog("warning: HTML/pug files doesn't provided");
-			return;
-		}
+	// 	if (!htmlFilesIsArray || !this.config.htmlFiles.length) {
+	// 		this.debugLog("warning: HTML/pug files doesn't provided");
+	// 		return;
+	// 	}
 
-		const sitemap = this.config.htmlFiles
-			?.filter((file) => fs.lstatSync(file).isFile())
-			.map((file) => path.basename(file).replace(/\.pug$/, constants.extDist.html));
+	// 	const sitemap = this.config.htmlFiles
+	// 		?.filter((file) => fs.lstatSync(file).isFile())
+	// 		.map((file) => path.basename(file).replace(/\.pug$/, constants.extDist.html));
 
-		try {
-			await this.compile({
-				type: constants.compilationTypes.pug,
-				filePaths: this.config.htmlFiles,
-				skipExtensions: false,
-				newFileExt: constants.extDist.html,
-				dist: this.config.distDir,
-				renderFn: (filePath, fileExtname) => {
-					const fullPath = path.resolve(filePath);
-					const isFile = fs.lstatSync(fullPath).isFile();
+	// 	try {
+	// 		await this.compile({
+	// 			type: constants.compilationTypes.pug,
+	// 			filePaths: this.config.htmlFiles,
+	// 			skipExtensions: false,
+	// 			newFileExt: constants.extDist.html,
+	// 			dist: this.config.distDir,
+	// 			renderFn: (filePath, fileExtname) => {
+	// 				const fullPath = path.resolve(filePath);
+	// 				const isFile = fs.lstatSync(fullPath).isFile();
 
-					if (!isFile) {
-						this.debugLog(`Skipping: ${fullPath} is a directory.`);
-						return null;
-					}
+	// 				if (!isFile) {
+	// 					this.debugLog(`Skipping: ${fullPath} is a directory.`);
+	// 					return null;
+	// 				}
 
-					if (fileExtname === constants.extDist.html) {
-						const templatedHTML = this.processHTMLTemplate(filePath);
-						return templatedHTML;
-					}
+	// 				if (fileExtname === constants.extDist.html) {
+	// 					const templatedHTML = this.processHTMLTemplate(filePath);
+	// 					return templatedHTML;
+	// 				}
 
-					return pug.renderFile(fullPath, {
-						pretty: false,
-						cache: false,
-						compileDebug: this.config.debug,
-						sitemap,
-						readFileSync,
-						env: this.config.production ? 'production' : 'development',
-						...this.config.pugConfigOverrides,
-					});
-				},
-			});
-		} catch (error) {
-			this.errLog('Error while compiling pug files');
-			this.errThrow(error);
-		}
-	}
+	// 				return pug.renderFile(fullPath, {
+	// 					pretty: false,
+	// 					cache: false,
+	// 					compileDebug: this.config.debug,
+	// 					sitemap,
+	// 					readFileSync,
+	// 					env: this.config.production ? 'production' : 'development',
+	// 					...this.config.pugConfigOverrides,
+	// 				});
+	// 			},
+	// 		});
+	// 	} catch (error) {
+	// 		this.errLog('Error while compiling pug files');
+	// 		this.errThrow(error);
+	// 	}
+	// }
 
 	async compileScripts() {
 		this.debugLog('Scripts compilation');
